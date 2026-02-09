@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Jogo Multiplayer</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    // Conexão com seu servidor no Render
+    const socket = io("https://multiplayer-serve-edson-simplicio.onrender.com");
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Lista de jogadores
+    let players = {};
+
+    // Recebe atualização dos jogadores do servidor
+    socket.on("updatePlayers", (data) => {
+      players = data;
+      drawPlayers();
+    });
+
+    // Função para desenhar os jogadores
+    function drawPlayers() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let id in players) {
+        const p = players[id];
+        ctx.fillStyle = id === socket.id ? "lime" : "red"; // verde = você, vermelho = outros
+        ctx.fillRect(p.x * 50 + canvas.width/2, p.y * 50 + canvas.height/2, 40, 40);
+      }
+    }
+
+    // Movimentos com teclado
+    let pos = { x: 0, y: 0 };
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") pos.x += 1;
+      if (e.key === "ArrowLeft") pos.x -= 1;
+      if (e.key === "ArrowUp") pos.y -= 1;
+      if (e.key === "ArrowDown") pos.y += 1;
+
+      // Envia posição para o servidor
+      socket.emit("move", pos);
+    });
+  </script>
+</body>
+</html>
