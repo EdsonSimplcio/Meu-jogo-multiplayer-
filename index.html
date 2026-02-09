@@ -2,107 +2,52 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Jogo Multiplayer</title>
+  <title>Chat Simples</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #222; }
-    canvas { display: block; }
-
-    /* Estilo dos botões virtuais */
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-    }
-    .btn {
-      width: 60px;
-      height: 60px;
-      background: #444;
-      color: white;
-      font-size: 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-    .btn:active {
-      background: #666;
-    }
+    body { font-family: Arial, sans-serif; background: #f0f0f0; }
+    #chat { max-width: 600px; margin: 20px auto; background: white; padding: 10px; border-radius: 8px; }
+    #messages { list-style: none; padding: 0; }
+    #messages li { padding: 5px; margin-bottom: 5px; border-bottom: 1px solid #ddd; }
+    #form { display: flex; margin-top: 10px; }
+    #input { flex: 1; padding: 8px; }
+    #send { padding: 8px; }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-
-  <!-- Botões virtuais -->
-  <div class="controls">
-    <button class="btn" id="left">←</button>
-    <button class="btn" id="up">↑</button>
-    <button class="btn" id="down">↓</button>
-    <button class="btn" id="right">→</button>
+  <div id="chat">
+    <h2>Chat Multiplayer</h2>
+    <ul id="messages"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Digite sua mensagem..." />
+      <button id="send">Enviar</button>
+    </form>
   </div>
 
   <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
-    // Conexão com seu servidor no Render
+    // Conecta ao servidor no Render
     const socket = io("https://multiplayer-serve-edson-simplicio.onrender.com");
 
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const messages = document.getElementById("messages");
 
-    // Lista de jogadores
-    let players = {};
-
-    // Posição inicial do jogador
-    let pos = { x: 0, y: 0 };
-
-    // Assim que conectar, envia posição inicial
-    socket.on("connect", () => {
-      socket.emit("move", pos);
-    });
-
-    // Recebe atualização dos jogadores
-    socket.on("updatePlayers", (data) => {
-      players = data;
-      drawPlayers();
-    });
-
-    // Função para desenhar os jogadores
-    function drawPlayers() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let id in players) {
-        const p = players[id];
-        ctx.fillStyle = id === socket.id ? "lime" : "red"; // verde = você, vermelho = outros
-        ctx.fillRect(p.x * 50 + canvas.width/2, p.y * 50 + canvas.height/2, 40, 40);
+    // Envia mensagem
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit("chatMessage", input.value);
+        input.value = "";
       }
-    }
-
-    // Movimentos com teclado
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight") pos.x += 1;
-      if (e.key === "ArrowLeft") pos.x -= 1;
-      if (e.key === "ArrowUp") pos.y -= 1;
-      if (e.key === "ArrowDown") pos.y += 1;
-      socket.emit("move", pos);
     });
 
-    // Função para mover via botões virtuais
-    function movePlayer(direction) {
-      if (direction === "left") pos.x -= 1;
-      if (direction === "right") pos.x += 1;
-      if (direction === "up") pos.y -= 1;
-      if (direction === "down") pos.y += 1;
-      socket.emit("move", pos);
-    }
-
-    // Eventos dos botões
-    document.getElementById("left").addEventListener("click", () => movePlayer("left"));
-    document.getElementById("right").addEventListener("click", () => movePlayer("right"));
-    document.getElementById("up").addEventListener("click", () => movePlayer("up"));
-    document.getElementById("down").addEventListener("click", () => movePlayer("down"));
+    // Recebe mensagem
+    socket.on("chatMessage", (msg) => {
+      const li = document.createElement("li");
+      li.textContent = msg.id + ": " + msg.text;
+      messages.appendChild(li);
+    });
   </script>
 </body>
 </html>
