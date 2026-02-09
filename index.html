@@ -6,10 +6,41 @@
   <style>
     body { margin: 0; overflow: hidden; background: #222; }
     canvas { display: block; }
+
+    /* Estilo dos botões virtuais */
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      width: 60px;
+      height: 60px;
+      background: #444;
+      color: white;
+      font-size: 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .btn:active {
+      background: #666;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+
+  <!-- Botões virtuais -->
+  <div class="controls">
+    <button class="btn" id="left">←</button>
+    <button class="btn" id="up">↑</button>
+    <button class="btn" id="down">↓</button>
+    <button class="btn" id="right">→</button>
+  </div>
 
   <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -25,7 +56,15 @@
     // Lista de jogadores
     let players = {};
 
-    // Recebe atualização dos jogadores do servidor
+    // Posição inicial do jogador
+    let pos = { x: 0, y: 0 };
+
+    // Assim que conectar, envia posição inicial
+    socket.on("connect", () => {
+      socket.emit("move", pos);
+    });
+
+    // Recebe atualização dos jogadores
     socket.on("updatePlayers", (data) => {
       players = data;
       drawPlayers();
@@ -42,16 +81,28 @@
     }
 
     // Movimentos com teclado
-    let pos = { x: 0, y: 0 };
     document.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") pos.x += 1;
       if (e.key === "ArrowLeft") pos.x -= 1;
       if (e.key === "ArrowUp") pos.y -= 1;
       if (e.key === "ArrowDown") pos.y += 1;
-
-      // Envia posição para o servidor
       socket.emit("move", pos);
     });
+
+    // Função para mover via botões virtuais
+    function movePlayer(direction) {
+      if (direction === "left") pos.x -= 1;
+      if (direction === "right") pos.x += 1;
+      if (direction === "up") pos.y -= 1;
+      if (direction === "down") pos.y += 1;
+      socket.emit("move", pos);
+    }
+
+    // Eventos dos botões
+    document.getElementById("left").addEventListener("click", () => movePlayer("left"));
+    document.getElementById("right").addEventListener("click", () => movePlayer("right"));
+    document.getElementById("up").addEventListener("click", () => movePlayer("up"));
+    document.getElementById("down").addEventListener("click", () => movePlayer("down"));
   </script>
 </body>
 </html>
