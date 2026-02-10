@@ -127,34 +127,7 @@
       li.textContent = msg.user + ": " + msg.text;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
-
-      // Comandos especiais (objetos 3D)
-      switch(msg.text.toLowerCase()) {
-        case "cubo":
-          const cube = new THREE.Mesh(
-            new THREE.BoxGeometry(1,1,1),
-            new THREE.MeshStandardMaterial({ color:0x888888 })
-          );
-          cube.position.set(Math.random()*4-2,0,Math.random()*4-2);
-          scene.add(cube);
-          break;
-        case "vaquinha":
-          const vaca = new THREE.Mesh(
-            new THREE.BoxGeometry(1,1,2),
-            new THREE.MeshStandardMaterial({ color:0x552200 })
-          );
-          vaca.position.set(Math.random()*4-2,0,Math.random()*4-2);
-          scene.add(vaca);
-          break;
-        case "inimigo":
-          const inimigo = new THREE.Mesh(
-            new THREE.BoxGeometry(1,1,1),
-            new THREE.MeshStandardMaterial({ color:0xff0000 })
-          );
-          inimigo.position.set(Math.random()*4-2,0,Math.random()*4-2);
-          scene.add(inimigo);
-          break;
-      }
+      // 👉 Agora o chat só mostra texto, sem criar cubos/objetos
     });
 
     // === Loop de animação ===
