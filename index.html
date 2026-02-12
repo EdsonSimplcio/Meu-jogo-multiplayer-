@@ -2,16 +2,26 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Multiplayer Teste</title>
+  <title>Multiplayer Chat</title>
   <style>
-    body { margin:0; overflow:hidden; font-family: Arial, sans-serif; }
+    body { margin:0; font-family: Arial, sans-serif; background:#111; color:#fff; }
     #chat { position:fixed; bottom:10px; left:10px; width:300px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:8px; z-index:1000; }
     #messages { list-style: none; padding: 0; max-height:150px; overflow-y:auto; font-family: monospace; font-size:14px; }
     #messages li { padding: 3px; margin-bottom: 3px; border-bottom: 1px solid #444; }
     #form { display: flex; margin-top: 5px; }
     #input { flex: 1; padding: 6px; background:#222; color:white; border:1px solid #555; border-radius:4px; }
     #send { padding: 6px; background:#0084ff; color:white; border:none; border-radius:4px; cursor:pointer; }
-    canvas { display:block; }
+    /* Modal */
+    #modalOverlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;
+      z-index:2000;
+    }
+    #modalBox {
+      background:#fff; color:#000; padding:20px; border-radius:8px; text-align:center; min-width:250px;
+    }
+    #modalBox input { width:90%; padding:6px; margin-top:10px; border:1px solid #ccc; border-radius:4px; }
+    #modalBox button { margin-top:15px; padding:6px 12px; background:#0084ff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -26,88 +36,55 @@
 
   <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
   <script>
     // Conecta ao servidor
     const socket = io("https://multiplayer-serve-edson-simplicio.onrender.com");
 
-    let username = prompt("Digite seu nome:");
+    let username = null;
+
+    // === Janela modal para escolher nome ===
+    function pedirNomeUsuario() {
+      const overlay = document.createElement("div");
+      overlay.id = "modalOverlay";
+
+      const box = document.createElement("div");
+      box.id = "modalBox";
+
+      const titulo = document.createElement("h3");
+      titulo.innerText = "Digite seu nome:";
+      box.appendChild(titulo);
+
+      const input = document.createElement("input");
+      input.type = "text";
+      box.appendChild(input);
+
+      const okBtn = document.createElement("button");
+      okBtn.innerText = "Entrar";
+      okBtn.onclick = () => {
+        const nome = input.value.trim();
+        if (nome.length > 0) {
+          username = nome;
+          document.body.removeChild(overlay);
+        }
+      };
+      box.appendChild(okBtn);
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    // Chama a janela logo ao carregar
+    window.onload = pedirNomeUsuario;
 
     const form = document.getElementById("form");
     const input = document.getElementById("input");
     const messages = document.getElementById("messages");
 
-    // === Cena 3D ===
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    camera.position.set(0,1.5,5);
-
-    const light = new THREE.PointLight(0xffffff, 1);
-    light.position.set(5,5,5);
-    scene.add(light);
-
-    // === Personagem local ===
-    const localChar = criarCharacterr();
-    scene.add(localChar);
-
-    // Função para criar personagem
-    function criarCharacterr() {
-      const characterr = new THREE.Group();
-      const corpoMat = new THREE.MeshStandardMaterial({ color: 0x3333ff });
-
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.3), corpoMat);
-      body.position.y = 0.5;
-      characterr.add(body);
-
-      const cabeca = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), corpoMat);
-      cabeca.position.y = 1.2;
-      characterr.add(cabeca);
-
-      return characterr;
-    }
-
-    // Lista de jogadores online
-    const players = {};
-
-    // Receber atualização de jogadores
-    socket.on("playerUpdate", (data) => {
-      if (!players[data.id]) {
-        const novo = criarCharacterr();
-        scene.add(novo);
-        players[data.id] = novo;
-      }
-      players[data.id].position.set(data.x, data.y, data.z);
-      players[data.id].rotation.y = data.rot;
-    });
-
-    // Remover jogador desconectado
-    socket.on("playerDisconnect", (id) => {
-      if (players[id]) {
-        scene.remove(players[id]);
-        delete players[id];
-      }
-    });
-
-    // Atualizar posição local periodicamente
-    setInterval(() => {
-      socket.emit("playerUpdate", {
-        x: localChar.position.x,
-        y: localChar.position.y,
-        z: localChar.position.z,
-        rot: localChar.rotation.y
-      });
-    }, 50);
-
     // === Chat ===
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      if (input.value) {
+      if (input.value && username) {
         socket.emit("chatMessage", { user: username, text: input.value });
         input.value = "";
       }
@@ -118,34 +95,6 @@
       li.textContent = msg.user + ": " + msg.text;
       messages.appendChild(li);
       messages.scrollTop = messages.scrollHeight;
-    });
-
-    // === Movimentação WASD ===
-    const keys = {};
-    window.addEventListener("keydown", (e) => keys[e.key] = true);
-    window.addEventListener("keyup", (e) => keys[e.key] = false);
-
-    function updateMovement() {
-      const speed = 0.05;
-      if (keys["w"]) localChar.position.z -= speed;
-      if (keys["s"]) localChar.position.z += speed;
-      if (keys["a"]) localChar.position.x -= speed;
-      if (keys["d"]) localChar.position.x += speed;
-    }
-
-    // === Loop de animação ===
-    function animate() {
-      requestAnimationFrame(animate);
-      updateMovement();
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    // Ajuste de tela
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
     });
   </script>
 </body>
