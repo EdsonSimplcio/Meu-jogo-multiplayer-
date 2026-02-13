@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Multiplayer Chat com Dados RPG</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#111; color:#fff; }
+    #chat { position:fixed; bottom:10px; left:10px; width:320px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:8px; z-index:1000; }
+    #messages { list-style: none; padding: 0; max-height:150px; overflow-y:auto; font-family: monospace; font-size:14px; }
+    #messages li { padding: 3px; margin-bottom: 3px; border-bottom: 1px solid #444; }
+    #form { display: flex; margin-top: 5px; }
+    #input { flex: 1; padding: 6px; background:#222; color:white; border:1px solid #555; border-radius:4px; }
+    #send { padding: 6px; background:#0084ff; color:white; border:none; border-radius:4px; cursor:pointer; }
+    /* Modal */
+    #modalOverlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;
+      z-index:2000;
+    }
+    #modalBox {
+      background:#fff; color:#000; padding:20px; border-radius:8px; text-align:center; min-width:250px;
+    }
+    #modalBox input { width:90%; padding:6px; margin-top:10px; border:1px solid #ccc; border-radius:4px; }
+    #modalBox button { margin-top:15px; padding:6px 12px; background:#0084ff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <h3>Chat Multiplayer</h3>
+    <ul id="messages"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Digite sua mensagem..." />
+      <button id="send">Enviar</button>
+    </form>
+  </div>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+  <script>
+    // Conecta ao servidor
+    const socket = io("https://multiplayer-serve-edson-simplicio.onrender.com");
+
+    let username = null;
+
+    // === Janela modal para escolher nome ===
+    function pedirNomeUsuario() {
+      const overlay = document.createElement("div");
+      overlay.id = "modalOverlay";
+
+      const box = document.createElement("div");
+      box.id = "modalBox";
+
+      const titulo = document.createElement("h3");
+      titulo.innerText = "Digite seu nome:";
+      box.appendChild(titulo);
+
+      const input = document.createElement("input");
+      input.type = "text";
+      box.appendChild(input);
+
+      const okBtn = document.createElement("button");
+      okBtn.innerText = "Entrar";
+      okBtn.onclick = () => {
+        const nome = input.value.trim();
+        if (nome.length > 0) {
+          username = nome;
+          document.body.removeChild(overlay);
+        }
+      };
+      box.appendChild(okBtn);
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    // Chama a janela logo ao carregar
+    window.onload = pedirNomeUsuario;
+
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const messages = document.getElementById("messages");
+
+    // === Função para rolar dados ===
+    function rolarDados(comando) {
+      const regex = /^(\d+)d(\d+)$/i;
+      const match = comando.match(regex);
+      if (!match) return null;
+
+      const qtd = parseInt(match[1]);
+      const lados = parseInt(match[2]);
+
+      // Lista de dados comuns de RPG
+      const dadosValidos = [4,6,8,10,12,20,100];
+      if (!dadosValidos.includes(lados)) return null;
+
+      const resultados = [];
+      for (let i = 0; i < qtd; i++) {
+        resultados.push(Math.floor(Math.random() * lados) + 1);
+      }
+      return resultados;
+    }
+
+    // === Chat ===
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (input.value && username) {
+        socket.emit("chatMessage", { user: username, text: input.value });
+        input.value = "";
+      }
+    });
+
+    socket.on("chatMessage", (msg) => {
+      const li = document.createElement("li");
+      li.textContent = msg.user + ": " + msg.text;
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+
+      // Verifica se é comando de dado
+      const resultados = rolarDados(msg.text);
+      if (resultados) {
+        const li2 = document.createElement("li");
+        li2.textContent = `🎲 Rolagem (${msg.text}): [ ${resultados.join(", ")} ]`;
+        messages.appendChild(li2);
+        messages.scrollTop = messages.scrollHeight;
+      }
+    });
+  </script>
+</body>
+</html>
